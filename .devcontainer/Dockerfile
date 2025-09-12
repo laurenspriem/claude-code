@@ -25,7 +25,79 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   jq \
   nano \
   vim \
+  # Build essentials for native dependencies
+  build-essential \
+  cmake \
+  # Required for Flutter Linux desktop
+  libgtk-3-dev \
+  libglu1-mesa \
+  # Python for build scripts
+  python3 \
+  # Network tools needed for installations
+  curl \
+  wget \
+  # Android emulator dependencies
+  libpulse0 \
+  libgl1-mesa-glx \
+  libx11-6 \
+  libxext6 \
+  libxfixes3 \
+  libxi6 \
+  libxrender1 \
+  libxtst6 \
+  libnss3 \
+  libgconf-2-4 \
+  libasound2 \
   && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Install Go 1.23
+RUN wget -q https://go.dev/dl/go1.23.linux-amd64.tar.gz && \
+  tar -C /usr/local -xzf go1.23.linux-amd64.tar.gz && \
+  rm go1.23.linux-amd64.tar.gz
+ENV PATH="/usr/local/go/bin:$PATH"
+
+# Install Rust
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+ENV PATH="/root/.cargo/bin:$PATH"
+
+# Install Flutter 3.32.8
+RUN git clone https://github.com/flutter/flutter.git /usr/local/flutter -b stable && \
+  cd /usr/local/flutter && \
+  git checkout 3.32.8
+ENV PATH="/usr/local/flutter/bin:$PATH"
+
+# Pre-download Flutter dependencies and accept licenses
+RUN flutter doctor -v && \
+  flutter precache && \
+  yes | flutter doctor --android-licenses || true
+
+# Install Melos for monorepo management
+RUN dart pub global activate melos
+
+# Install Flutter Rust Bridge
+RUN cargo install flutter_rust_bridge_codegen
+
+# Add Dart pub global bin to PATH
+ENV PATH="/root/.pub-cache/bin:$PATH"
+
+# Set up Android SDK (minimal for CI/CD builds)
+ENV ANDROID_HOME=/usr/local/android-sdk
+RUN mkdir -p $ANDROID_HOME/cmdline-tools && \
+  wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip && \
+  unzip -q commandlinetools-linux-9477386_latest.zip && \
+  mv cmdline-tools $ANDROID_HOME/cmdline-tools/latest && \
+  rm commandlinetools-linux-9477386_latest.zip
+
+ENV PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$PATH"
+
+# Install essential Android SDK components
+RUN yes | sdkmanager --licenses && \
+  sdkmanager "platform-tools" \
+    "platforms;android-33" \
+    "build-tools;33.0.0" \
+    "emulator" \
+    "system-images;android-33;google_apis;x86_64"
+
 
 # Ensure default node user has access to /usr/local/share
 RUN mkdir -p /usr/local/share/npm-global && \
