@@ -5,6 +5,15 @@ ENV TZ="$TZ"
 
 ARG CLAUDE_CODE_VERSION=latest
 
+# Generate locale to fix warnings
+RUN apt-get update && apt-get install -y --no-install-recommends locales && \
+    sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen && \
+    locale-gen && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+ENV LANG=en_US.UTF-8
+ENV LANGUAGE=en_US:en
+ENV LC_ALL=en_US.UTF-8
+
 # Install basic development tools and iptables/ipset
 RUN apt-get update && apt-get install -y --no-install-recommends \
   less \
@@ -122,7 +131,7 @@ ENV DEVCONTAINER=true
 # Create workspace and config directories
 RUN mkdir -p /workspace /root/.claude
 
-WORKDIR /workspace
+WORKDIR /home/dev
 
 ARG GIT_DELTA_VERSION=0.18.2
 RUN ARCH=$(dpkg --print-architecture) && \
