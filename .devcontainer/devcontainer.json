@@ -40,19 +40,19 @@
       }
     }
   },
-  "remoteUser": "root",
+  "remoteUser": "node",
   "mounts": [
     "source=claude-code-bashhistory-${devcontainerId},target=/commandhistory,type=volume",
-    "source=claude-code-config-${devcontainerId},target=/root/.claude,type=volume",
+    "source=claude-code-config-${devcontainerId},target=/home/node/.claude,type=volume",
     "source=${localEnv:HOME}/dev,target=/home/dev,type=bind,consistency=cached"
   ],
   "containerEnv": {
     "NODE_OPTIONS": "--max-old-space-size=4096",
-    "CLAUDE_CONFIG_DIR": "/root/.claude",
+    "CLAUDE_CONFIG_DIR": "/home/node/.claude",
     "POWERLEVEL9K_DISABLE_GITSTATUS": "true"
   },
   "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=delegated",
   "workspaceFolder": "/workspace",
-  "postStartCommand": "/usr/local/bin/init-firewall.sh",
+  "postStartCommand": "sudo chown -R node:node /home/node/.claude && sudo /usr/local/bin/init-firewall.sh",
   "waitFor": "postStartCommand"
 }

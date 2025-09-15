@@ -7,9 +7,9 @@ ARG CLAUDE_CODE_VERSION=latest
 
 # Generate locale to fix warnings
 RUN apt-get update && apt-get install -y --no-install-recommends locales && \
-    sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen && \
-    locale-gen && \
-    apt-get clean && rm -rf /var/lib/apt/lists/*
+  sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen && \
+  locale-gen && \
+  apt-get clean && rm -rf /var/lib/apt/lists/*
 ENV LANG=en_US.UTF-8
 ENV LANGUAGE=en_US:en
 ENV LC_ALL=en_US.UTF-8
@@ -71,9 +71,14 @@ RUN apt-get update && \
   apt-get clean && rm -rf /var/lib/apt/lists/*
 ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
 
-# Install Rust
-RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-ENV PATH="/root/.cargo/bin:$PATH"
+# Install Rust to shared location
+ENV RUSTUP_HOME=/opt/rust/rustup
+ENV CARGO_HOME=/opt/rust/cargo
+RUN mkdir -p /opt/rust && \
+  curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --no-modify-path && \
+  chmod -R a+rx /opt/rust && \
+  chown -R node:node /opt/rust
+ENV PATH="/opt/rust/cargo/bin:$PATH"
 
 # Install Flutter 3.32.8
 RUN git clone https://github.com/flutter/flutter.git /usr/local/flutter -b stable && \
@@ -81,19 +86,22 @@ RUN git clone https://github.com/flutter/flutter.git /usr/local/flutter -b stabl
   git checkout 3.32.8
 ENV PATH="/usr/local/flutter/bin:$PATH"
 
+# Set up shared Dart pub cache
+ENV PUB_CACHE=/opt/dart-pub-cache
+RUN mkdir -p /opt/dart-pub-cache && \
+  chown -R node:node /opt/dart-pub-cache
+ENV PATH="/opt/dart-pub-cache/bin:$PATH"
+
 # Pre-download Flutter dependencies and accept licenses
 RUN flutter doctor -v && \
   flutter precache && \
   yes | flutter doctor --android-licenses || true
 
-# Install Melos for monorepo management
+# Install Melos for monorepo management (now using shared pub cache)
 RUN dart pub global activate melos
 
-# Install Flutter Rust Bridge
+# Install Flutter Rust Bridge (now using shared cargo home)
 RUN cargo install flutter_rust_bridge_codegen
-
-# Add Dart pub global bin to PATH
-ENV PATH="/root/.pub-cache/bin:$PATH"
 
 
 # Set up Android SDK (minimal for CI/CD builds)
@@ -109,27 +117,35 @@ ENV PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$A
 # Install essential Android SDK components
 RUN yes | sdkmanager --licenses && \
   sdkmanager "platform-tools" \
-    "platforms;android-33" \
-    "build-tools;33.0.0" \
-    "emulator" \
-    "system-images;android-33;google_apis;x86_64"
+  "platforms;android-33" \
+  "build-tools;33.0.0" \
+  "emulator" \
+  "system-images;android-33;google_apis;x86_64"
 
+# Fix permissions for all development tools
+RUN chown -R node:node /usr/local/flutter && \
+  chown -R node:node $ANDROID_HOME && \
+  chmod -R a+rx /usr/local/flutter && \
+  chmod -R a+rx $ANDROID_HOME
 
-# Ensure npm global directory exists
-RUN mkdir -p /usr/local/share/npm-global
+# Ensure npm global directory exists and has proper permissions
+RUN mkdir -p /usr/local/share/npm-global && \
+  chown -R node:node /usr/local/share/npm-global
 
-ARG USERNAME=root
+ARG USERNAME=node
 
 # Persist bash history.
 RUN SNIPPET="export PROMPT_COMMAND='history -a' && export HISTFILE=/commandhistory/.bash_history" \
   && mkdir /commandhistory \
-  && touch /commandhistory/.bash_history
+  && touch /commandhistory/.bash_history \
+  && chown -R $USERNAME /commandhistory
 
 # Set `DEVCONTAINER` environment variable to help with orientation
 ENV DEVCONTAINER=true
 
 # Create workspace and config directories
-RUN mkdir -p /workspace /root/.claude
+RUN mkdir -p /workspace /home/node/.claude && \
+  chown -R node:node /workspace /home/node/.claude
 
 WORKDIR /home/dev
 
@@ -139,7 +155,9 @@ RUN ARCH=$(dpkg --print-architecture) && \
   dpkg -i "git-delta_${GIT_DELTA_VERSION}_${ARCH}.deb" && \
   rm "git-delta_${GIT_DELTA_VERSION}_${ARCH}.deb"
 
-# Stay as root user for development
+# Set up non-root user
+USER node
+
 # Install global packages
 ENV NPM_CONFIG_PREFIX=/usr/local/share/npm-global
 ENV PATH=$PATH:/usr/local/share/npm-global/bin
@@ -167,4 +185,9 @@ RUN npm install -g @anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}
 
 # Copy and set up firewall script
 COPY init-firewall.sh /usr/local/bin/
-RUN chmod +x /usr/local/bin/init-firewall.sh
+USER root
+RUN chmod +x /usr/local/bin/init-firewall.sh && \
+  echo "node ALL=(root) NOPASSWD: /usr/local/bin/init-firewall.sh" > /etc/sudoers.d/node-firewall && \
+  echo "node ALL=(root) NOPASSWD: /bin/chown -R node\:node /home/node/.claude" >> /etc/sudoers.d/node-firewall && \
+  chmod 0440 /etc/sudoers.d/node-firewall
+USER node
