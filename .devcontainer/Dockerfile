@@ -51,10 +51,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Install Go 1.23
-RUN wget -q https://go.dev/dl/go1.23.linux-amd64.tar.gz && \
-  tar -C /usr/local -xzf go1.23.linux-amd64.tar.gz && \
-  rm go1.23.linux-amd64.tar.gz
+RUN wget -O go.tar.gz https://go.dev/dl/go1.23.0.linux-amd64.tar.gz && \
+  tar -C /usr/local -xzf go.tar.gz && \
+  rm go.tar.gz
 ENV PATH="/usr/local/go/bin:$PATH"
+
+# Install JDK 17 (required for Android SDK and Flutter)
+RUN apt-get update && \
+  apt-get install -y openjdk-17-jdk && \
+  apt-get clean && rm -rf /var/lib/apt/lists/*
+ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
 
 # Install Rust
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
@@ -80,6 +86,7 @@ RUN cargo install flutter_rust_bridge_codegen
 # Add Dart pub global bin to PATH
 ENV PATH="/root/.pub-cache/bin:$PATH"
 
+
 # Set up Android SDK (minimal for CI/CD builds)
 ENV ANDROID_HOME=/usr/local/android-sdk
 RUN mkdir -p $ANDROID_HOME/cmdline-tools && \
@@ -99,36 +106,31 @@ RUN yes | sdkmanager --licenses && \
     "system-images;android-33;google_apis;x86_64"
 
 
-# Ensure default node user has access to /usr/local/share
-RUN mkdir -p /usr/local/share/npm-global && \
-  chown -R node:node /usr/local/share
+# Ensure npm global directory exists
+RUN mkdir -p /usr/local/share/npm-global
 
-ARG USERNAME=node
+ARG USERNAME=root
 
 # Persist bash history.
 RUN SNIPPET="export PROMPT_COMMAND='history -a' && export HISTFILE=/commandhistory/.bash_history" \
   && mkdir /commandhistory \
-  && touch /commandhistory/.bash_history \
-  && chown -R $USERNAME /commandhistory
+  && touch /commandhistory/.bash_history
 
 # Set `DEVCONTAINER` environment variable to help with orientation
 ENV DEVCONTAINER=true
 
-# Create workspace and config directories and set permissions
-RUN mkdir -p /workspace /home/node/.claude && \
-  chown -R node:node /workspace /home/node/.claude
+# Create workspace and config directories
+RUN mkdir -p /workspace /root/.claude
 
 WORKDIR /workspace
 
 ARG GIT_DELTA_VERSION=0.18.2
 RUN ARCH=$(dpkg --print-architecture) && \
   wget "https://github.com/dandavison/delta/releases/download/${GIT_DELTA_VERSION}/git-delta_${GIT_DELTA_VERSION}_${ARCH}.deb" && \
-  sudo dpkg -i "git-delta_${GIT_DELTA_VERSION}_${ARCH}.deb" && \
+  dpkg -i "git-delta_${GIT_DELTA_VERSION}_${ARCH}.deb" && \
   rm "git-delta_${GIT_DELTA_VERSION}_${ARCH}.deb"
 
-# Set up non-root user
-USER node
-
+# Stay as root user for development
 # Install global packages
 ENV NPM_CONFIG_PREFIX=/usr/local/share/npm-global
 ENV PATH=$PATH:/usr/local/share/npm-global/bin
@@ -156,8 +158,4 @@ RUN npm install -g @anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}
 
 # Copy and set up firewall script
 COPY init-firewall.sh /usr/local/bin/
-USER root
-RUN chmod +x /usr/local/bin/init-firewall.sh && \
-  echo "node ALL=(root) NOPASSWD: /usr/local/bin/init-firewall.sh" > /etc/sudoers.d/node-firewall && \
-  chmod 0440 /etc/sudoers.d/node-firewall
-USER node
+RUN chmod +x /usr/local/bin/init-firewall.sh
