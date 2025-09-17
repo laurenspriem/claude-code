@@ -87,19 +87,18 @@ RUN git clone https://github.com/flutter/flutter.git /usr/local/flutter -b stabl
   git checkout 3.32.8
 ENV PATH="/usr/local/flutter/bin:$PATH"
 
-# Set up shared Dart pub cache
-ENV PUB_CACHE=/opt/dart-pub-cache
+# Create shared dart pub cache directory (but users will use their own)
 RUN mkdir -p /opt/dart-pub-cache && \
-  chown -R node:node /opt/dart-pub-cache
-ENV PATH="/opt/dart-pub-cache/bin:$PATH"
+  chmod -R a+rwx /opt/dart-pub-cache
 
 # Pre-download Flutter dependencies and accept licenses
 RUN flutter doctor -v && \
   flutter precache && \
   yes | flutter doctor --android-licenses || true
 
-# Install Melos for monorepo management (now using shared pub cache)
-RUN dart pub global activate melos
+# Install Melos for monorepo management with temporary pub cache
+RUN PUB_CACHE=/opt/dart-pub-cache dart pub global activate melos && \
+  chmod -R a+rx /opt/dart-pub-cache/bin
 
 # Install Flutter Rust Bridge and cargo-expand with temporary CARGO_HOME
 RUN CARGO_HOME=/opt/rust/cargo cargo install flutter_rust_bridge_codegen && \
@@ -164,6 +163,11 @@ USER node
 # Set up user-specific cargo directory
 ENV CARGO_HOME=/home/node/.cargo
 RUN mkdir -p /home/node/.cargo/bin
+
+# Set up user-specific Dart pub cache
+ENV PUB_CACHE=/home/node/.pub-cache
+RUN mkdir -p /home/node/.pub-cache/bin
+ENV PATH="/home/node/.pub-cache/bin:/opt/dart-pub-cache/bin:$PATH"
 
 # Install global packages
 ENV NPM_CONFIG_PREFIX=/usr/local/share/npm-global
