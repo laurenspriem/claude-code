@@ -69,6 +69,20 @@ for domain in \
     "api.anthropic.com" \
     "ente.io" \
     "sentry.io" \
+    "index.crates.io" \
+    "static.crates.io" \
+    "crates.io" \
+    "docs.rs" \
+    "cdn.jsdelivr.net" \
+    "objects.githubusercontent.com" \
+    "pub.dev" \
+    "storage.googleapis.com" \
+    "dl.google.com" \
+    "maven.google.com" \
+    "proxy.golang.org" \
+    "sum.golang.org" \
+    "go.dev" \
+    "pkg.go.dev" \
     "statsig.anthropic.com" \
     "statsig.com" \
     "marketplace.visualstudio.com" \

@@ -71,14 +71,15 @@ RUN apt-get update && \
   apt-get clean && rm -rf /var/lib/apt/lists/*
 ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
 
-# Install Rust to shared location
+# Install Rust with shared rustup but user-specific cargo
 ENV RUSTUP_HOME=/opt/rust/rustup
-ENV CARGO_HOME=/opt/rust/cargo
 RUN mkdir -p /opt/rust && \
-  curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --no-modify-path && \
+  curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
+  CARGO_HOME=/opt/rust/cargo sh -s -- -y --no-modify-path && \
   chmod -R a+rx /opt/rust && \
   chown -R node:node /opt/rust
-ENV PATH="/opt/rust/cargo/bin:$PATH"
+# Each user will have their own CARGO_HOME in their home directory
+ENV PATH="/home/node/.cargo/bin:/opt/rust/cargo/bin:$PATH"
 
 # Install Flutter 3.32.8
 RUN git clone https://github.com/flutter/flutter.git /usr/local/flutter -b stable && \
@@ -100,8 +101,10 @@ RUN flutter doctor -v && \
 # Install Melos for monorepo management (now using shared pub cache)
 RUN dart pub global activate melos
 
-# Install Flutter Rust Bridge (now using shared cargo home)
-RUN cargo install flutter_rust_bridge_codegen
+# Install Flutter Rust Bridge and cargo-expand with temporary CARGO_HOME
+RUN CARGO_HOME=/opt/rust/cargo cargo install flutter_rust_bridge_codegen && \
+  CARGO_HOME=/opt/rust/cargo cargo install cargo-expand && \
+  chmod -R a+rx /opt/rust/cargo/bin
 
 
 # Set up Android SDK (minimal for CI/CD builds)
@@ -157,6 +160,10 @@ RUN ARCH=$(dpkg --print-architecture) && \
 
 # Set up non-root user
 USER node
+
+# Set up user-specific cargo directory
+ENV CARGO_HOME=/home/node/.cargo
+RUN mkdir -p /home/node/.cargo/bin
 
 # Install global packages
 ENV NPM_CONFIG_PREFIX=/usr/local/share/npm-global
