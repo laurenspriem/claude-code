@@ -182,10 +182,32 @@ RUN sh -c "$(wget -O- https://github.com/deluan/zsh-in-docker/releases/download/
 # Install Claude
 RUN npm install -g @anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}
 
+# Configure ADB to use host server by default
+RUN echo "" >> ~/.bashrc && \
+    echo "# Android ADB host configuration" >> ~/.bashrc && \
+    echo "if [ -f /usr/local/bin/setup-adb.sh ]; then" >> ~/.bashrc && \
+    echo "  HOST_IP=\$(ip route | grep default | cut -d' ' -f3 2>/dev/null)" >> ~/.bashrc && \
+    echo "  if [ -n \"\$HOST_IP\" ]; then" >> ~/.bashrc && \
+    echo "    export ANDROID_ADB_SERVER_ADDRESS=\$HOST_IP" >> ~/.bashrc && \
+    echo "    export ANDROID_ADB_SERVER_PORT=5037" >> ~/.bashrc && \
+    echo "  fi" >> ~/.bashrc && \
+    echo "fi" >> ~/.bashrc && \
+    echo "" >> ~/.zshrc && \
+    echo "# Android ADB host configuration" >> ~/.zshrc && \
+    echo "if [ -f /usr/local/bin/setup-adb.sh ]; then" >> ~/.zshrc && \
+    echo "  HOST_IP=\$(ip route | grep default | cut -d' ' -f3 2>/dev/null)" >> ~/.zshrc && \
+    echo "  if [ -n \"\$HOST_IP\" ]; then" >> ~/.zshrc && \
+    echo "    export ANDROID_ADB_SERVER_ADDRESS=\$HOST_IP" >> ~/.zshrc && \
+    echo "    export ANDROID_ADB_SERVER_PORT=5037" >> ~/.zshrc && \
+    echo "  fi" >> ~/.zshrc && \
+    echo "fi" >> ~/.zshrc
 
-# Copy and set up firewall script
+
+# Copy and set up firewall script and ADB setup
 COPY init-firewall.sh /usr/local/bin/
+COPY setup-adb.sh /usr/local/bin/
 USER root
+RUN chmod +x /usr/local/bin/setup-adb.sh
 RUN chmod +x /usr/local/bin/init-firewall.sh && \
   echo "node ALL=(root) NOPASSWD: /usr/local/bin/init-firewall.sh" > /etc/sudoers.d/node-firewall && \
   echo "node ALL=(root) NOPASSWD: /bin/chown -R node\:node /home/node/.claude" >> /etc/sudoers.d/node-firewall && \

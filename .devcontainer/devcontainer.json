@@ -53,6 +53,6 @@
   },
   "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=delegated",
   "workspaceFolder": "/workspace",
-  "postStartCommand": "sudo chown -R node:node /home/node/.claude && sudo /usr/local/bin/init-firewall.sh",
+  "postStartCommand": "sudo chown -R node:node /home/node/.claude && sudo /usr/local/bin/init-firewall.sh && /usr/local/bin/setup-adb.sh",
   "waitFor": "postStartCommand"
 }

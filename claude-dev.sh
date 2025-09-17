@@ -18,6 +18,22 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m'
 
+# Function to check ADB setup
+check_adb_setup() {
+    if command -v adb >/dev/null 2>&1; then
+        if ! timeout 1 bash -c "cat < /dev/null > /dev/tcp/172.17.0.1/5037" 2>/dev/null; then
+            echo ""
+            echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+            echo -e "${YELLOW}Android Emulator Support:${NC}"
+            echo "ADB server not detected on host."
+            echo "To enable Android emulator access, run on your HOST:"
+            echo -e "${BLUE}  adb kill-server && adb -a nodaemon server start${NC}"
+            echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+            echo ""
+        fi
+    fi
+}
+
 # Parse command line arguments
 REBUILD=false
 if [[ "$1" == "--rebuild" ]] || [[ "$1" == "-r" ]]; then
@@ -63,7 +79,7 @@ run_container() {
         -e CLAUDE_CONFIG_DIR="/home/node/.claude" \
         -e POWERLEVEL9K_DISABLE_GITSTATUS="true" \
         ${IMAGE_NAME} \
-        /bin/bash -c "sudo chown -R node:node /home/node/.claude && sudo /usr/local/bin/init-firewall.sh && exec /bin/zsh"
+        /bin/bash -c "sudo chown -R node:node /home/node/.claude && sudo /usr/local/bin/init-firewall.sh && /usr/local/bin/setup-adb.sh && if ! timeout 1 bash -c 'cat < /dev/null > /dev/tcp/172.17.0.1/5037' 2>/dev/null && command -v adb >/dev/null 2>&1; then echo ''; echo -e '\033[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m'; echo -e '\033[1;33mAndroid Emulator Support:\033[0m'; echo 'ADB server not detected on host.'; echo 'To enable Android emulator access, run on your HOST:'; echo -e '\033[0;34m  adb kill-server && adb -a nodaemon server start\033[0m'; echo -e '\033[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m'; echo ''; fi && exec /bin/zsh"
 }
 
 # Check if user wants to rebuild

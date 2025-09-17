@@ -105,6 +105,15 @@ echo "Host network detected as: $HOST_NETWORK"
 iptables -A INPUT -s "$HOST_NETWORK" -j ACCEPT
 iptables -A OUTPUT -d "$HOST_NETWORK" -j ACCEPT
 
+# Allow Android emulator and ADB connections on host
+echo "Enabling Android emulator access..."
+# ADB server port
+iptables -A OUTPUT -d "$HOST_NETWORK" -p tcp --dport 5037 -j ACCEPT
+iptables -A INPUT -s "$HOST_NETWORK" -p tcp --sport 5037 -j ACCEPT
+# Emulator console and adb ports (5554-5560 for up to 4 emulators)
+iptables -A OUTPUT -d "$HOST_NETWORK" -p tcp --dport 5554:5560 -j ACCEPT
+iptables -A INPUT -s "$HOST_NETWORK" -p tcp --sport 5554:5560 -j ACCEPT
+
 # Set default policies to DROP first
 iptables -P INPUT DROP
 iptables -P FORWARD DROP
