@@ -110,9 +110,9 @@ run_container() {
         --cap-add=NET_RAW \
         --mount source=claude-code-bashhistory,target=/commandhistory,type=volume \
         --mount source="${HOME}/devcontainer_claude_config",target=/home/node/.claude,type=bind,consistency=cached \
-        --mount source="${HOME}/dev_wild",target=/home/dev,type=bind,consistency=cached \
+        --mount source="${HOME}/dev_wild",target=/home/laurens/dev_wild,type=bind,consistency=cached \
         --mount source="${WORKSPACE_DIR}",target=/workspace,type=bind,consistency=delegated \
-        -w /home/dev \
+        -w /home/laurens/dev_wild \
         -e NODE_OPTIONS="--max-old-space-size=4096" \
         -e CLAUDE_CONFIG_DIR="/home/node/.claude" \
         -e POWERLEVEL9K_DISABLE_GITSTATUS="true" \

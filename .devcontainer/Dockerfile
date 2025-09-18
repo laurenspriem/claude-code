@@ -153,10 +153,10 @@ RUN SNIPPET="export PROMPT_COMMAND='history -a' && export HISTFILE=/commandhisto
 ENV DEVCONTAINER=true
 
 # Create workspace and config directories
-RUN mkdir -p /workspace /home/node/.claude && \
-  chown -R node:node /workspace /home/node/.claude
+RUN mkdir -p /workspace /home/node/.claude /home/laurens/dev_wild && \
+  chown -R node:node /workspace /home/node/.claude /home/laurens/dev_wild
 
-WORKDIR /home/dev
+WORKDIR /home/laurens/dev_wild
 
 ARG GIT_DELTA_VERSION=0.18.2
 RUN ARCH=$(dpkg --print-architecture) && \
