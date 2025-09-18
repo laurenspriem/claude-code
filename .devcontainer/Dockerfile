@@ -42,6 +42,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   libglu1-mesa \
   # Python for build scripts
   python3 \
+  python3-pip \
   # Network tools needed for installations
   curl \
   wget \
@@ -80,6 +81,12 @@ RUN mkdir -p /opt/rust && \
   chown -R node:node /opt/rust
 # Each user will have their own CARGO_HOME in their home directory
 ENV PATH="/home/node/.cargo/bin:/opt/rust/cargo/bin:$PATH"
+
+# Install uv for Python package management
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh && \
+  mv /root/.local/bin/uv /usr/local/bin/ && \
+  mv /root/.local/bin/uvx /usr/local/bin/ && \
+  chmod a+rx /usr/local/bin/uv /usr/local/bin/uvx
 
 # Install Flutter 3.32.8
 RUN git clone https://github.com/flutter/flutter.git /usr/local/flutter -b stable && \
