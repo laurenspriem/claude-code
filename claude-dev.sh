@@ -36,9 +36,38 @@ check_adb_setup() {
 
 # Parse command line arguments
 REBUILD=false
-if [[ "$1" == "--rebuild" ]] || [[ "$1" == "-r" ]]; then
-    REBUILD=true
-fi
+FIREWALL=false
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --rebuild|-r)
+            REBUILD=true
+            shift
+            ;;
+        --firewall)
+            FIREWALL=true
+            shift
+            ;;
+        --help|-h)
+            echo "Usage: $0 [OPTIONS]"
+            echo ""
+            echo "Options:"
+            echo "  --rebuild, -r : Force rebuild of the container"
+            echo "  --firewall    : Enable strict network firewall (disabled by default)"
+            echo "  --help, -h    : Show this help message"
+            echo ""
+            echo "By default, the firewall is DISABLED for unrestricted network access."
+            echo "Use --firewall to enable the restrictive firewall."
+            exit 0
+            ;;
+        *)
+            echo "Unknown option: $1"
+            echo "Usage: $0 [--rebuild|-r] [--firewall] [--help|-h]"
+            echo "Run '$0 --help' for more information."
+            exit 1
+            ;;
+    esac
+done
 
 echo -e "${BLUE}Claude Code Dev Container${NC}"
 echo "========================="
@@ -65,6 +94,15 @@ run_container() {
     mkdir -p ~/devcontainer_claude_config
     mkdir -p ~/dev_wild
 
+    # Build the startup command based on firewall flag
+    if [ "$FIREWALL" = true ]; then
+        echo -e "${YELLOW}Firewall enabled - network access will be restricted${NC}"
+        STARTUP_CMD="sudo chown -R node:node /home/node/.claude && sudo /usr/local/bin/init-firewall.sh && /usr/local/bin/setup-adb.sh"
+    else
+        echo -e "${GREEN}Firewall disabled - full network access${NC}"
+        STARTUP_CMD="sudo chown -R node:node /home/node/.claude && /usr/local/bin/setup-adb.sh"
+    fi
+
     echo -e "${GREEN}Starting new container...${NC}"
     docker run -it \
         --name ${CONTAINER_NAME} \
@@ -79,7 +117,7 @@ run_container() {
         -e CLAUDE_CONFIG_DIR="/home/node/.claude" \
         -e POWERLEVEL9K_DISABLE_GITSTATUS="true" \
         ${IMAGE_NAME} \
-        /bin/bash -c "sudo chown -R node:node /home/node/.claude && sudo /usr/local/bin/init-firewall.sh && /usr/local/bin/setup-adb.sh && if ! timeout 1 bash -c 'cat < /dev/null > /dev/tcp/172.17.0.1/5037' 2>/dev/null && command -v adb >/dev/null 2>&1; then echo ''; echo -e '\033[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m'; echo -e '\033[1;33mAndroid Emulator Support:\033[0m'; echo 'ADB server not detected on host.'; echo 'To enable Android emulator access, run on your HOST:'; echo -e '\033[0;34m  adb kill-server && adb -a nodaemon server start\033[0m'; echo -e '\033[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m'; echo ''; fi && exec /bin/zsh"
+        /bin/bash -c "${STARTUP_CMD} && if ! timeout 1 bash -c 'cat < /dev/null > /dev/tcp/172.17.0.1/5037' 2>/dev/null && command -v adb >/dev/null 2>&1; then echo ''; echo -e '\033[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m'; echo -e '\033[1;33mAndroid Emulator Support:\033[0m'; echo 'ADB server not detected on host.'; echo 'To enable Android emulator access, run on your HOST:'; echo -e '\033[0;34m  adb kill-server && adb -a nodaemon server start\033[0m'; echo -e '\033[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m'; echo ''; fi && exec /bin/zsh"
 }
 
 # Check if user wants to rebuild
