@@ -187,6 +187,10 @@ ENV SHELL=/bin/zsh
 ENV EDITOR=nano
 ENV VISUAL=nano
 
+# Configure git for the user
+RUN git config --global user.name "laurenspriem" && \
+    git config --global user.email "git@lrns.me"
+
 # Default powerline10k theme
 ARG ZSH_IN_DOCKER_VERSION=1.2.0
 RUN sh -c "$(wget -O- https://github.com/deluan/zsh-in-docker/releases/download/v${ZSH_IN_DOCKER_VERSION}/zsh-in-docker.sh)" -- \
